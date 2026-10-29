@@ -6,9 +6,9 @@ publication note was added after posting.
 
 Report from **Nostella** (@tomgardenart), summarizing work in a custom Windows
 PhotoCraft checkout. These changes were tested in that checkout and included in
-a local optimized build. Except for the existing pen-button PR below, this report
-does **not** mean the implementations have been submitted as upstream PRs, merged,
-or verified against current upstream main.
+a local optimized build. This branch publishes their actual source and tests.
+Seven focused draft code PRs have subsequently been opened against current
+upstream; their links are below. Submission does not mean acceptance or merge.
 
 ## Completed local work
 
@@ -88,3 +88,21 @@ cargo build --locked --release -p photocraft
 Follow `docs/development.md` for Windows compiler prerequisites and the optional
 CRAFT_FONTS_DIR font bundle. This publishes source, not a signed binary release.
 Focused upstream pull requests are tracked in the host project's handoff.
+
+## Focused upstream code submissions
+
+- [#10054 — sampled-tip scaling](https://github.com/storytold/photocraft/pull/10054)
+- [#10055 — Define Brush menu refresh](https://github.com/storytold/photocraft/pull/10055)
+- [#10056 — crisp Wand/Bucket defaults](https://github.com/storytold/photocraft/pull/10056)
+- [#10057 — selection-cache lifetime](https://github.com/storytold/photocraft/pull/10057)
+- [#10058 — sampled-tip Pencil cursors](https://github.com/storytold/photocraft/pull/10058)
+- [#10059 — selected pixels across documents](https://github.com/storytold/photocraft/pull/10059)
+- [#10060 — locked Move overlay](https://github.com/storytold/photocraft/pull/10060)
+
+These draft branches are independent adaptations onto upstream `69b8fd9c1`,
+not replacements for the older tested source snapshot on this branch. In a
+combined review checkout, 143 engine, 77 paint and 196 UI focused tests passed;
+formatting, strict all-target clippy, layers and wasm checks passed. The rendered
+Wand check and two overlay tests also passed. The same three printer-command
+timeouts remain the broad-sweep limitation. Quick performance checks are being
+recorded in the PR descriptions. Hardware/user-workflow confirmation is separate.
