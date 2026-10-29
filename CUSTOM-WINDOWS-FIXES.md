@@ -104,5 +104,9 @@ not replacements for the older tested source snapshot on this branch. In a
 combined review checkout, 143 engine, 77 paint and 196 UI focused tests passed;
 formatting, strict all-target clippy, layers and wasm checks passed. The rendered
 Wand check and two overlay tests also passed. The same three printer-command
-timeouts remain the broad-sweep limitation. Quick performance checks are being
-recorded in the PR descriptions. Hardware/user-workflow confirmation is separate.
+timeouts remain the broad-sweep limitation. The targeted quick performance run
+(`perf_scenarios`, seven reps, AMD Radeon RX 6600) completed successfully. Quick
+mode does not enforce full-size budgets, and regression comparison was skipped
+because the committed baseline uses another machine class; no speedup is claimed.
+Full details are recorded in the PR descriptions. Hardware/user-workflow
+confirmation is separate.
