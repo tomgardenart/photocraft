@@ -61,6 +61,24 @@ fn sessions_have_no_store_by_default() {
 }
 
 #[test]
+fn defined_brush_before_background_store_attach_survives_restart() {
+    let dir = TempDir::new("early-defined-brush");
+    let opened = open_dir(&dir.0);
+    let mut s = Session::new();
+    s.execute("file.new", json!({"width": 12, "height": 12})).unwrap();
+    s.execute("select.rect", json!({"x": 2, "y": 2, "width": 4, "height": 4})).unwrap();
+    s.execute("edit.fill", json!({"color": "#000000"})).unwrap();
+    s.execute("brush.defineFromSelection", json!({"name": "Early square"})).unwrap();
+    assert!(s.attach_preset_store(opened).is_empty());
+    let (mut reopened, warnings) = session(&dir);
+    assert!(warnings.is_empty());
+    reopened.execute("tools.setBrush", json!({"preset": "Early square"})).unwrap();
+    let tip = reopened.tools.brush.tip.bitmap().unwrap();
+    assert_eq!((tip.width, tip.height), (4, 4));
+    assert!(tip.data.iter().all(|&v| v == u16::MAX));
+}
+
+#[test]
 fn tip_codec_round_trips_8_and_16_bit() {
     let t8 = tip8(37, 21, 3);
     let t16 = tip16(40, 33, 9);

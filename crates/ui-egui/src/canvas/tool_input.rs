@@ -246,9 +246,8 @@ pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers)
                 let target = app.ui.tool_options.move_target.clone();
                 let mode = if mods.shift { "add" } else { "replace" };
                 let before = app.session.active().map(|st| st.selected_layers());
-                // A locked layer under the pointer (the Background) can't move. Photoshop draws
-                // the layer marquee instead of reporting the lock (#4058). Probe without
-                // selecting so a locked hit doesn't become the selection first.
+                // Probe first: a locked hit warns on dragging, while genuinely
+                // empty space starts the layer-selection box.
                 let probe = app.run("layer.pickAt", json!({"x": x, "y": y, "target": target, "select": false}));
                 let locked_hit = probe.as_ref().ok().and_then(|v| v["layer"].as_u64()).is_some_and(|id| {
                     app.session.active().is_some_and(|st| {
@@ -257,12 +256,12 @@ pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers)
                         locks.position || locks.all || st.doc.is_background(id)
                     })
                 });
-                if locked_hit || (probe.as_ref().is_ok_and(|v| v["layer"].is_null()) && crate::move_box::empty_at(app, [x, y])) {
-                    if locked_hit {
-                        // A click still selects the locked layer, as in Photoshop; a drag's
-                        // marquee then replaces that selection on release.
-                        let _ = app.run("layer.pickAt", json!({"x": x, "y": y, "target": target, "mode": mode}));
-                    }
+                if locked_hit {
+                    let _ = app.run("layer.pickAt", json!({"x": x, "y": y, "target": target, "mode": mode}));
+                    app.move_blocked = true;
+                    return;
+                }
+                if probe.as_ref().is_ok_and(|v| v["layer"].is_null()) && crate::move_box::empty_at(app, [x, y]) {
                     crate::move_box::begin(app, [x, y], mods.shift);
                     return;
                 }
@@ -286,9 +285,11 @@ pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers)
             // With a selection: cut the selected pixels (⌥ copies them) and drag them as a floating
             // piece, from anywhere, as a marquee ⌘-drag does.
             if crate::move_ui::moves_selected_pixels_with(app, tool) {
+                let before = app.session.active().and_then(photocraft_engine::float_cmds::floating).cloned();
                 if crate::move_ui::float_selected(app, mods.alt, 0.0, 0.0) {
                     let mut d = Drag::new(tool, [x, y], vec![[x, y, pressure as f64]], mods, false);
                     d.sel_move = Some(true);
+                    d.transfer_floating_before = before;
                     app.drag = Some(d);
                 }
                 return;
@@ -392,7 +393,7 @@ pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers)
                 Tool::MagicWand => {
                     let o = app.ui.tool_options.clone();
                     let mode = selection_mode(app, mods);
-                    let _ = app.run("select.magicWand", json!({"x": x.floor(), "y": y.floor(), "tolerance": o.tolerance, "contiguous": o.contiguous, "antiAlias": o.anti_alias, "sampleAllLayers": o.sample_all.magic_wand, "mode": mode}));
+                    let _ = app.run("select.magicWand", json!({"x": x.floor(), "y": y.floor(), "tolerance": o.tolerance, "contiguous": o.contiguous, "antiAlias": o.wand_anti_alias, "sampleAllLayers": o.sample_all.magic_wand, "mode": mode}));
                     return;
                 }
                 Tool::MagicEraser => {
@@ -403,7 +404,7 @@ pub fn tool_event(app: &mut PhotocraftApp, ev: ToolEvent, mods: egui::Modifiers)
                     let o = app.ui.tool_options.clone();
                     let contents = if o.bucket_fill_pattern { "pattern" } else { "foreground" };
                     let mode = if o.bucket_clear { "clear" } else { o.bucket_blend_mode.label() };
-                    let _ = app.run("paint.bucket", json!({"x": x.floor(), "y": y.floor(), "tolerance": o.tolerance, "contiguous": o.contiguous, "antiAlias": o.anti_alias, "sampleAllLayers": o.sample_all.paint_bucket, "opacity": o.fill_opacity, "contents": contents, "mode": mode, "target": paint_target(app)}));
+                    let _ = app.run("paint.bucket", json!({"x": x.floor(), "y": y.floor(), "tolerance": o.tolerance, "contiguous": o.contiguous, "antiAlias": o.bucket_anti_alias, "sampleAllLayers": o.sample_all.paint_bucket, "opacity": o.fill_opacity, "contents": contents, "mode": mode, "target": paint_target(app)}));
                     return;
                 }
                 Tool::RedEye => {

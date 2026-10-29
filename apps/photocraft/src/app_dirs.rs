@@ -7,7 +7,8 @@
 //!    everything in `<exe dir>/PhotoCraftData`, so a portable copy on a USB stick leaves nothing in
 //!    `%APPDATA%`. The Windows portable zip ships with `portable.txt`; the MSI doesn't. If that
 //!    folder can't be written (read-only medium, Program Files), the app warns and falls back.
-//! 3. The platform convention: macOS `~/Library/Application Support/Photocraft`, Windows
+//! 3. This repository's custom exe uses `.photocraft-local/profile`, as its launcher does.
+//! 4. The platform convention: macOS `~/Library/Application Support/Photocraft`, Windows
 //!    `%APPDATA%\Photocraft`, Linux `$XDG_CONFIG_HOME/photocraft` or `~/.config/photocraft`.
 //!
 //! One exception: the platform convention keeps crash-recovery autosaves out of what is synced
@@ -27,6 +28,8 @@ pub const PORTABLE_DATA_DIR: &str = "PhotoCraftData";
 pub enum Mode {
     /// `PHOTOCRAFT_CONFIG_DIR`.
     Override,
+    /// This repository's custom executable, opened without its launcher.
+    Custom,
     /// `<exe dir>/PhotoCraftData`.
     Portable,
     /// The platform's per-user config directory.
@@ -459,6 +462,17 @@ pub fn resolve(env: impl Fn(&str) -> Option<OsString>, exe_dir: Option<&Path>) -
         return DataDir { dir: Some(PathBuf::from(d)), mode: Mode::Override, warning: None };
     }
     let platform = platform_dir(&env);
+    // Keep double-clicking the custom exe consistent with Run PhotoCraft.cmd.
+    // Explicit config overrides and portable mode still take precedence. Other
+    // checkouts/installed PhotoCraft copies retain the platform convention.
+    if let Some(exe) = exe_dir.filter(|d| portable_marker(d).is_none())
+        && let Some(root) = exe.ancestors().nth(4)
+        && ["release", "debug"].iter().any(|profile| exe == root.join("tools/photocraft/target").join(profile))
+        && root.join("Run PhotoCraft.cmd").is_file()
+        && root.join("scripts/run-photocraft.ps1").is_file()
+    {
+        return DataDir { dir: Some(root.join(".photocraft-local/profile")), mode: Mode::Custom, warning: None };
+    }
     let Some((exe_dir, marker)) = exe_dir.and_then(|d| portable_marker(d).map(|m| (d, m))) else {
         return DataDir { dir: platform, mode: Mode::Platform, warning: None };
     };

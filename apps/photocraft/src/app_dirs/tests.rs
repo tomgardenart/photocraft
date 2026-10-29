@@ -23,6 +23,27 @@ fn fake_home(root: &Path) -> impl Fn(&str) -> Option<OsString> + use<> {
 }
 
 #[test]
+fn custom_executable_and_launcher_share_profile_without_overriding_explicit_choices() {
+    let root = temp("custom-profile");
+    let exe = root.join("tools/photocraft/target/release");
+    std::fs::create_dir_all(&exe).unwrap();
+    std::fs::create_dir_all(root.join("scripts")).unwrap();
+    std::fs::write(root.join("Run PhotoCraft.cmd"), "").unwrap();
+    std::fs::write(root.join("scripts/run-photocraft.ps1"), "").unwrap();
+    let expected = root.join(".photocraft-local/profile");
+    let d = resolve(fake_home(&root), Some(&exe));
+    assert_eq!((d.mode, d.dir), (Mode::Custom, Some(expected.clone())));
+    let d = resolve(env_of(&[("PHOTOCRAFT_CONFIG_DIR", &expected)]), Some(&exe));
+    assert_eq!((d.mode, d.dir), (Mode::Override, Some(expected)));
+    let other = root.join("another-profile");
+    let d = resolve(env_of(&[("PHOTOCRAFT_CONFIG_DIR", &other)]), Some(&exe));
+    assert_eq!((d.mode, d.dir), (Mode::Override, Some(other)));
+    std::fs::write(exe.join(PORTABLE_MARKERS[0]), "").unwrap();
+    assert_eq!(resolve(fake_home(&root), Some(&exe)).mode, Mode::Portable);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn no_marker_uses_the_platform_dir() {
     let root = temp("platform");
     let exe = root.join("bin");
